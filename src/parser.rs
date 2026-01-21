@@ -55,9 +55,22 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn skip_ws(&mut self) {
-        while self.pos < self.input.len() && self.input[self.pos].is_ascii_whitespace() {
-            self.pos += 1;
+    fn skip_ws_and_comments(&mut self) {
+        loop {
+            while self.pos < self.input.len() && self.input[self.pos].is_ascii_whitespace() {
+                self.pos += 1;
+            }
+            if self.pos + 1 < self.input.len() && self.input[self.pos] == b';' {
+                self.pos += 1;
+                while self.pos < self.input.len() && self.input[self.pos] != b'\n' {
+                    self.pos += 1;
+                }
+                if self.pos < self.input.len() && self.input[self.pos] == b'\n' {
+                    self.pos += 1;
+                }
+            } else {
+                break;
+            }
         }
     }
 
@@ -66,7 +79,7 @@ impl<'a> Parser<'a> {
     }
 
     fn consume(&mut self, expected: u8) -> Result<(), String> {
-        self.skip_ws();
+        self.skip_ws_and_comments();
         if self.peek() == expected {
             self.pos += 1;
             Ok(())
@@ -80,7 +93,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse(&mut self) -> Result<Expr, String> {
-        self.skip_ws();
+        self.skip_ws_and_comments();
         if self.peek() != b'(' {
             if self.peek().is_ascii_digit() || self.peek() == b'-' {
                 return self.parse_num();
@@ -89,7 +102,7 @@ impl<'a> Parser<'a> {
         }
 
         self.pos += 1; // consume '('
-        self.skip_ws();
+        self.skip_ws_and_comments();
 
         let keyword = self.try_read_keyword();
         println!("Keyword: {:?}", keyword);
@@ -151,7 +164,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_one_expr(&mut self) -> Result<Expr, String> {
-        self.skip_ws();
+        self.skip_ws_and_comments();
         println!(
             "Parsing one expr at pos {}: '{}'",
             self.pos,
@@ -169,7 +182,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_num(&mut self) -> Result<Expr, String> {
-        self.skip_ws();
+        self.skip_ws_and_comments();
         let start = self.pos;
         if self.peek() == b'-' {
             self.pos += 1;
@@ -182,7 +195,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_var(&mut self) -> Result<Expr, String> {
-        self.skip_ws();
+        self.skip_ws_and_comments();
         let start = self.pos;
         while self.pos < self.input.len()
             && (self.input[self.pos].is_ascii_alphanumeric() || self.input[self.pos] == b'_')
@@ -196,27 +209,27 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_lam(&mut self) -> Result<Expr, String> {
-        self.skip_ws();
+        self.skip_ws_and_comments();
         let param = self
             .parse_var()?
             .var()
             .ok_or("Ожидалось имя параметра".to_string())?
             .clone();
-        self.skip_ws();
+        self.skip_ws_and_comments();
         let body = Box::new(self.parse_one_expr()?);
         self.consume(b')')?;
         Ok(Expr::Lam { param, body: body })
     }
 
     fn parse_let(&mut self) -> Result<Expr, String> {
-        self.skip_ws();
+        self.skip_ws_and_comments();
         let name = self
             .parse_var()?
             .var()
             .ok_or("Ожидалось имя переменной".to_string())?
             .clone();
         println!("Let variable name: {}", name);
-        self.skip_ws();
+        self.skip_ws_and_comments();
         let value = self.parse_one_expr()?;
         println!("Let value parsed: {:?}", value);
         // let body = self.parse_one_expr()?;
@@ -242,18 +255,18 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_if(&mut self) -> Result<Expr, String> {
-        self.skip_ws();
+        self.skip_ws_and_comments();
         let cond = Box::new(self.parse_one_expr()?);
-        self.skip_ws();
+        self.skip_ws_and_comments();
         let then = Box::new(self.parse_one_expr()?);
-        self.skip_ws();
+        self.skip_ws_and_comments();
         let else_ = Box::new(self.parse_one_expr()?);
         self.consume(b')')?;
         Ok(Expr::If { cond, then, else_ })
     }
 
     fn try_read_keyword(&mut self) -> Option<String> {
-        self.skip_ws();
+        self.skip_ws_and_comments();
         let start = self.pos;
         while self.pos < self.input.len() && (self.input[self.pos].is_ascii_alphanumeric()) {
             self.pos += 1;
@@ -271,7 +284,7 @@ impl<'a> Parser<'a> {
 pub fn parse(input: &String) -> Result<Expr, String> {
     let mut parser = Parser::new(input);
     let e = parser.parse()?;
-    parser.skip_ws();
+    parser.skip_ws_and_comments();
     if parser.pos < parser.input.len() {
         return Err("Неожиданные символы в конце ввода".into());
     }

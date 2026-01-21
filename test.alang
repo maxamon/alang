@@ -1,5 +1,7 @@
 (begin
+    ; define x like 10
     (define x 10)
     (define y (lambda z (+ 2 z)))
     (define v (y (y x)))
+    ; last expression will return result
     (if (+ -10 v) (+ 1 v) (let z (+ 2 x) z)))
