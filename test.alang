@@ -1,0 +1,5 @@
+(begin
+    (define x 10)
+    (define y (lambda z (+ 2 z)))
+    (define v (y (y x)))
+    (if (+ -10 v) (+ 1 v) (let z (+ 2 x) z)))
